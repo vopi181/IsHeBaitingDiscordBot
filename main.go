@@ -3,18 +3,22 @@ package main
 import (
 	"encoding/binary"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
+	"syscall"
 
 	csgopb "github.com/13k/go-steam-resources/v2/steampb/csgo"
+	"github.com/bwmarrin/discordgo"
 	"github.com/golang/protobuf/proto"
 	"github.com/vopi181/IsHeBaitingDiscordBot/demoparsing"
 )
@@ -130,13 +134,13 @@ func protobinToDem(pbFile string) (csgopb.CMsgGCCStrike15V2_MatchList, error) {
 
 func GetBaitStatsFromCode(code string) string {
 	df := RandomString(12)
-	err := downloadBinaryProtoFromCode(code, df+".protobin")
+	err := downloadBinaryProtoFromCode(code, "output/"+df+".protobin")
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Downloaded " + code)
 
-	demoproto, err := protobinToDem(df + ".protobin")
+	demoproto, err := protobinToDem("output/" + df + ".protobin")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,6 +151,66 @@ func GetBaitStatsFromCode(code string) string {
 
 }
 
+// Variables used for command line parameters
+var (
+	Token string
+)
+
+func init() {
+
+	flag.StringVar(&Token, "t", "", "Bot Token")
+	flag.Parse()
+}
+
 func main() {
-	println(GetBaitStatsFromCode("CSGO-6hBft-94wkr-YPtCw-o5De7-Vp8eD"))
+	fmt.Println("IsHeBaiting Discord Bot")
+	log.Println("Starting bot...")
+	dg, err := discordgo.New("Bot " + Token)
+	if err != nil {
+		fmt.Println("error creating Discord session,", err)
+		return
+	}
+
+	// Register the messageCreate func as a callback for MessageCreate events.
+	dg.AddHandler(messageCreate)
+
+	// we only care about receiving message events.
+	dg.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsGuildMessages)
+	// Open a websocket connection to Discord and begin listening.
+	err = dg.Open()
+	if err != nil {
+		log.Fatalln("error opening connection,", err)
+		return
+	}
+	// Wait here until CTRL-C or other term signal is received.
+	log.Println("Bot is now running.  Press CTRL-C to exit.")
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	<-sc
+
+	// Cleanly close down the Discord session.
+	dg.Close()
+
+	// println(GetBaitStatsFromCode("CSGO-6hBft-94wkr-YPtCw-o5De7-Vp8eD"))
+}
+
+// This function will be called (due to AddHandler above) every time a new
+// message is created on any channel that the authenticated bot has access to.
+func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+
+	// Ignore all messages created by the bot itself
+	// This isn't required in this specific example but it's a good practice.
+	if m.Author.ID == s.State.User.ID {
+		return
+	}
+	if m.Content[:10] == "-baitcheck" {
+		msgCode := strings.Split(m.Content, " ")[1]
+		if isProperCode(msgCode) {
+			s.MessageReactionAdd(m.ChannelID, m.ID, "🧠")
+			s.ChannelMessageSend(m.ChannelID, "```"+GetBaitStatsFromCode(msgCode)+"```")
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Error: Bad Formatting. Proper Formatting is\n```-baitcheck CSGO-6hBft-94wkr-YPtCw-o5De7-Vp8eD```")
+		}
+	}
+
 }
