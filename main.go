@@ -99,6 +99,9 @@ func downloadBinaryProtoFromCode(sharelink string, demofile string) error {
 	boilerPath := ""
 	if runtime.GOOS == "windows" {
 		boilerPath = filepath.Join(executableDir, "boilerbins_windows/boiler-writter.exe")
+	} else if runtime.GOOS == "linux" {
+		boilerPath = filepath.Join(executableDir, "boilerbins_linux/boiler-writter")
+
 	}
 
 	cmd := exec.Command(boilerPath, demofile, fmt.Sprint(sc.MatchID), fmt.Sprint(sc.OutcomeID), fmt.Sprint(sc.TokenID))
