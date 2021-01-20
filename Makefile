@@ -10,6 +10,7 @@ folderstruct:
 	mkdir dist
 IsHeBaitingDiscordBot: folderstruct
 	go build
+	GOOS="linux" go build
 	cp IsHeBaitingDiscordBot* dist/
 boilerbins:	folderstruct
 	mkdir dist/boilerbins_linux
