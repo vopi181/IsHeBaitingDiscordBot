@@ -41,7 +41,6 @@ func isProperCode(sharelink string) bool {
 	return found
 }
 
-//https://github.com/akiver/CSGO-Demos-Manager/blob/7abb325ad3663732ca585addee52383a78751314/Core/ShareCode.cs#L79
 func decodeShareCode(sharelink string) (decodedShareCode, error) {
 	log.Println("trying to decode: " + sharelink)
 	if !isProperCode(sharelink) {
